@@ -1,0 +1,25 @@
+---
+import type { InferEntrySchema } from 'astro:content';
+import BaseLayout from './base-layout.astro';
+
+export interface Props {
+  frontmatter: InferEntrySchema<'content'>;
+}
+
+const { frontmatter } = Astro.props;
+---
+
+<BaseLayout title={frontmatter.title}>
+  <div class="prose mx-auto max-w-2xl p-12">
+    <h1>{frontmatter.title}</h1>
+    <span class="text-gray-400">
+      Posted on
+      <time datetime={frontmatter.date.toDateString()}>
+        {frontmatter.date.toLocaleDateString()}
+      </time>
+    </span>
+    <article>
+      <slot />
+    </article>
+  </div>
+</BaseLayout>
