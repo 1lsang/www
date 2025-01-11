@@ -1,8 +1,27 @@
 ---
-import '@/styles/globals.css';
+import { getCollection } from 'astro:content';
+import BaseLayout from '@/layouts/base-layout.astro';
+import PostPreview from '@/components/post-preview.astro';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+const allPosts = await getCollection('content');
 ---
 
-<div class="text-4xl font-medium text-blue-600">hello world</div>
+<BaseLayout title="Home">
+  <div class="mx-auto max-w-2xl space-y-8 p-12">
+    <h2 class="text-2xl font-bold">POSTS</h2>
+    <div class="space-y-4">
+      {
+        allPosts.length > 0
+          ? allPosts.map((post: any) => (
+              <PostPreview
+                url={`/posts/${post.id}`}
+                title={post.data.title}
+                date={post.data.date}
+                description={post.data.description}
+              />
+            ))
+          : 'No post'
+      }
+    </div>
+  </div>
+</BaseLayout>
