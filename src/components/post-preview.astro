@@ -1,0 +1,26 @@
+---
+import { Card, CardTitle, CardDescription, CardHeader, CardContent } from '@/components/ui/card';
+
+export interface Props {
+  title: string;
+  description: string;
+  date: Date;
+  url: URL | string;
+}
+
+const { title, description, date, url } = Astro.props;
+---
+
+<Card>
+  <a href={url}>
+    <CardHeader>
+      <CardTitle>{title}</CardTitle>
+      <CardDescription>
+        Posted on <time datetime={date.toISOString()}>{date.toLocaleDateString()}</time>
+      </CardDescription>
+    </CardHeader>
+    <CardContent>
+      <CardDescription>{description}</CardDescription>
+    </CardContent>
+  </a>
+</Card>
