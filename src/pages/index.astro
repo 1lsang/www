@@ -1,27 +1,18 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '@/layouts/base-layout.astro';
-import PostPreview from '@/components/post-preview.astro';
+import { Link } from '@/components/ui/link';
 
 const allPosts = await getCollection('content');
 ---
 
 <BaseLayout title="Home">
   <div class="mx-auto max-w-2xl space-y-8 p-12">
-    <h2 class="text-2xl font-bold">POSTS</h2>
-    <div class="space-y-4">
-      {
-        allPosts.length > 0
-          ? allPosts.map((post: any) => (
-              <PostPreview
-                url={`/posts/${post.id}`}
-                title={post.data.title}
-                date={post.data.date}
-                description={post.data.description}
-              />
-            ))
-          : 'No post'
-      }
+    <h2 class="text-2xl font-bold">ABOUT ME</h2>
+    <div>
+      <div class="text-xl font-medium">Park Il Sang</div>
+      <p class="text-gray-500">FE DEVELOPER</p>
     </div>
+    <Link variant="outline" href="/1">Go To Blog 🔗</Link>
   </div>
 </BaseLayout>
