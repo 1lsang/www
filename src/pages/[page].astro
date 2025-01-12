@@ -1,0 +1,69 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '@/layouts/base-layout.astro';
+import PostPreview from '@/components/post-preview.astro';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
+import { cn } from '@/lib/utils';
+
+export const getStaticPaths = (async ({ paginate }) => {
+  const allPosts = await getCollection('content');
+
+  return paginate(allPosts, { pageSize: 1 });
+}) satisfies GetStaticPaths;
+
+const { page } = Astro.props;
+---
+
+<BaseLayout title="Home">
+  <div class="mx-auto max-w-2xl space-y-8 p-12">
+    <h2 class="text-2xl font-bold">POSTS</h2>
+    <div class="space-y-4">
+      {
+        page.total > 0
+          ? page.data.map((post: any) => (
+              <PostPreview
+                url={`/posts/${post.id}`}
+                title={post.data.title}
+                date={post.data.date}
+                description={post.data.description}
+              />
+            ))
+          : 'No Post'
+      }
+    </div>
+    <Pagination>
+      <PaginationContent>
+        <PaginationItem>
+          <PaginationPrevious disabled={page.currentPage === 1} href={page.url.prev} />
+        </PaginationItem>
+        {
+          Array.from({ length: Math.min(5, page.lastPage) }, (_, index) => {
+            const target =
+              Math.min(
+                Math.max(1, page.currentPage - 2),
+                page.lastPage > 4 ? page.lastPage - 4 : page.lastPage,
+              ) + index;
+            return (
+              <PaginationItem>
+                <PaginationLink href={`/${target}`} isActive={target === page.currentPage}>
+                  {target}
+                </PaginationLink>
+              </PaginationItem>
+            );
+          })
+        }
+        <PaginationItem>
+          <PaginationNext disabled={page.currentPage === page.lastPage} href={page.url.next} />
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
+  </div>
+</BaseLayout>
