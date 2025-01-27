@@ -5,7 +5,7 @@ import { z, defineCollection } from 'astro:content';
 
 // 각 컬렉션에 대한 `loader` 및 `schema` 정의
 const content = defineCollection({
-  loader: glob({ pattern: '**/[^_]*.md', base: './src/contents' }),
+  loader: glob({ pattern: '**/*.mdx', base: './src/contents' }),
   schema: z.object({
     title: z.string(),
     date: z.date(),
