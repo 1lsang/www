@@ -1,6 +1,4 @@
 ---
-import { Card, CardTitle, CardDescription, CardHeader, CardContent } from '@/components/ui/card';
-
 export interface Props {
   title: string;
   description: string;
@@ -11,16 +9,34 @@ export interface Props {
 const { title, description, date, url } = Astro.props;
 ---
 
-<Card>
-  <a href={url}>
-    <CardHeader>
-      <CardTitle>{title}</CardTitle>
-      <CardDescription>
-        Posted on <time datetime={date.toISOString()}>{date.toLocaleDateString()}</time>
-      </CardDescription>
-    </CardHeader>
-    <CardContent>
-      <CardDescription>{description}</CardDescription>
-    </CardContent>
-  </a>
-</Card>
+<a href={url}>
+  <div
+    class="group bg-background hover:bg-accent/60 rounded-lg px-4 py-3 transition-colors duration-500"
+  >
+    <div class="flex items-center gap-6">
+      <div class="flex-1 space-y-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="font-semibold tracking-tight">
+              {title}
+            </h2>
+            <div class="text-muted-foreground text-right text-xs">
+              {date.toLocaleDateString()}
+            </div>
+          </div>
+          <div class="space-y-1">
+            <p class="text-muted-foreground text-xs">
+              {description}
+            </p>
+            <!-- <div class="text-muted-foreground flex gap-1 text-xs">
+              <span class="bg-muted rounded-full px-1 py-0.5"># React</span>
+              <span class="bg-muted rounded-full px-1 py-0.5"># React</span>
+              <span class="bg-muted rounded-full px-1 py-0.5"># React</span>
+            </div> -->
+          </div>
+        </div>
+      </div>
+      <div></div>
+    </div>
+  </div>
+</a>
