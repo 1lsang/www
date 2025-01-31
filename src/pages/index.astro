@@ -1,18 +1,54 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '@/layouts/base-layout.astro';
-import { Link } from '@/components/ui/link';
+import { EMAIL, GITHUB_URL, LINKEDIN_URL } from '@/constants';
+import { EmailIcon, GithubIcon, LinkedInIcon } from '@/components/icons/sns';
 
 const allPosts = await getCollection('content');
 ---
 
 <BaseLayout title="Home">
-  <div class="mx-auto max-w-2xl space-y-8 p-12">
-    <h2 class="text-2xl font-bold">ABOUT ME</h2>
+  <div class="mx-auto max-w-2xl space-y-8 p-6">
     <div>
-      <div class="text-xl font-medium">Park Il Sang</div>
+      <h2 class="text-xl font-bold">박일상</h2>
       <p class="text-gray-500">FE DEVELOPER</p>
+      <p class="text-gray-500">Seoul</p>
+      <p>안녕하세요, 박일상입니다.</p>
     </div>
-    <Link variant="outline" href="/1">Go To Blog 🔗</Link>
+    <div>
+      <h3 class="mb-2 font-semibold">CONTACTS</h3>
+      <div class="text-muted-foreground space-y-2">
+        <a
+          href={`mailto:${EMAIL}`}
+          class="group hover:text-foreground flex w-fit items-center gap-1 underline underline-offset-4 transition-colors"
+        >
+          <EmailIcon class="size-5 group-hover:text-gray-900" />
+          {EMAIL}
+        </a>
+        <a
+          href={GITHUB_URL}
+          target="_blank"
+          class="group hover:text-foreground flex w-fit items-center gap-1 underline underline-offset-4 transition-colors"
+        >
+          <GithubIcon class="size-5 transition-colors group-hover:text-[#1e2227]" />
+          1lsang
+        </a>
+        <a
+          href={LINKEDIN_URL}
+          target="_blank"
+          class="group hover:text-foreground flex w-fit items-center gap-1 underline underline-offset-4 transition-colors"
+        >
+          <LinkedInIcon class="size-5 transition-colors group-hover:text-[#0e67c4]" />
+          IlSang Park
+        </a>
+      </div>
+    </div>
+    <div>
+      <h3 class="mb-2 font-semibold">EXPERIENCE</h3>
+      <div>
+        <div class="font-medium">Hyundai Autoever 엔터프라이즈IT개발팀</div>
+        <div class="text-muted-foreground text-sm">2024.04 ~ NOW</div>
+      </div>
+    </div>
   </div>
 </BaseLayout>
