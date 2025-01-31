@@ -1,0 +1,19 @@
+---
+export interface Props {
+  title: string;
+  date: Date;
+}
+
+const { title, date } = Astro.props;
+---
+
+<div class="mb-6 space-y-4 border-b pb-6">
+  <h1 class="text-3xl font-semibold">{title}</h1>
+  <span class="text-sm text-gray-400">
+    <time datetime={date.toDateString()}>
+      <span>{date.toLocaleDateString()}</span>
+      •
+      <span>{date.toLocaleTimeString()}</span>
+    </time>
+  </span>
+</div>
