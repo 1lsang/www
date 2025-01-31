@@ -1,6 +1,9 @@
 ---
+import '@/styles/mdx.css';
+
 import type { InferEntrySchema } from 'astro:content';
 import BaseLayout from './base-layout.astro';
+import PostInformation from '@/components/post-information.astro';
 
 export interface Props {
   frontmatter: InferEntrySchema<'content'>;
@@ -10,15 +13,9 @@ const { frontmatter } = Astro.props;
 ---
 
 <BaseLayout title={frontmatter.title}>
-  <div class="prose mx-auto max-w-2xl p-12">
-    <h1>{frontmatter.title}</h1>
-    <span class="text-gray-400">
-      Posted on
-      <time datetime={frontmatter.date.toDateString()}>
-        {frontmatter.date.toLocaleDateString()}
-      </time>
-    </span>
-    <article>
+  <div class="p-6">
+    <PostInformation {...frontmatter} />
+    <article class="mdx">
       <slot />
     </article>
   </div>

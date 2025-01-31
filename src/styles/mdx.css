@@ -1,0 +1,127 @@
+@import 'tailwindcss';
+@import './globals.css';
+
+html {
+  scroll-behavior: smooth;
+}
+
+.mdx {
+  /* @apply text-foreground; */
+  @apply text-gray-800;
+}
+
+.mdx h1 {
+  @apply scroll-m-20 text-xl font-bold tracking-tight;
+}
+
+.mdx h2 {
+  @apply scroll-m-20 text-xl font-semibold tracking-tight;
+}
+
+.mdx h3 {
+  @apply scroll-m-20 text-xl font-medium tracking-tight;
+}
+
+.mdx h4 {
+  @apply scroll-m-20 text-lg font-bold tracking-tight;
+}
+
+.mdx h5 {
+  @apply scroll-m-20 text-lg font-semibold tracking-tight;
+}
+
+.mdx h6 {
+  @apply scroll-m-20 text-lg font-medium tracking-tight;
+}
+
+.mdx :where(h1, h2, h3, h4, h5, h6) a::after {
+  @apply ml-2 inline-block h-5 w-5 bg-[url('/icons/link.svg')] bg-contain bg-center opacity-0 transition-opacity duration-300 content-[''];
+}
+
+.mdx :where(h1, h2, h3, h4, h5, h6):hover a::after {
+  @apply opacity-100;
+}
+
+.mdx blockquote {
+  @apply mt-6 border-l-2 pl-6 italic;
+}
+
+.mdx p {
+  @apply leading-7 [&:not(:first-child)]:mt-6;
+}
+
+.mdx :where(:not(h1, h2, h3, h4, h5, h6)) a {
+  @apply rounded-md;
+  @apply decoration-primary underline underline-offset-2;
+  @apply hover:text-accent-foreground hover:decoration-accent-foreground transition-colors duration-300 hover:bg-gray-100;
+}
+
+.mdx :where(:not(h1, h2, h3, h4, h5, h6)) a::after {
+  @apply content-['_↗'];
+}
+
+.mdx code:not(pre code) {
+  @apply border-foreground/10 bg-accent rounded border px-0.5 text-sm font-semibold;
+}
+
+.mdx code:not(pre code)::before,
+.mdx code:not(pre code)::after {
+  @apply content-none;
+}
+
+.mdx ul,
+.mdx ol {
+  @apply my-6 ml-6 list-disc [&>li]:mt-2;
+}
+
+.mdx ul:not(ul ul, ol ul),
+.mdx ol:not(ul ol, ol ol) {
+  @apply my-2;
+}
+
+.mdx ul {
+  @apply list-disc;
+}
+.mdx ol {
+  @apply list-decimal;
+}
+
+.mdx mark {
+  @apply rounded bg-amber-100 px-1 py-px font-medium;
+}
+
+.mdx table {
+  @apply w-full caption-bottom rounded text-sm;
+}
+
+.mdx thead {
+  @apply [&_tr]:border-b;
+}
+
+.mdx tbody {
+  @apply [&_tr:last-child]:border-0;
+}
+
+.mdx tfoot {
+  @apply bg-muted/50 border-t font-medium [&>tr]:last:border-b-0;
+}
+
+.mdx tr {
+  @apply hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors;
+}
+
+.mdx th {
+  @apply text-muted-foreground h-10 px-2 text-left align-middle font-medium [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px];
+}
+
+.mdx td {
+  @apply p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px];
+}
+
+.mdx caption {
+  @apply text-muted-foreground mt-4 text-sm;
+}
+
+::selection {
+  @apply bg-blue-200;
+}
