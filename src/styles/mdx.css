@@ -74,8 +74,8 @@ html {
   @apply my-6 ml-6 list-disc [&>li]:mt-2;
 }
 
-.mdx ul:not(ul ul, ol ul),
-.mdx ol:not(ul ol, ol ol) {
+.mdx ul:where(ul ul, ol ul),
+.mdx ol:where(ul ol, ol ol) {
   @apply my-2;
 }
 
