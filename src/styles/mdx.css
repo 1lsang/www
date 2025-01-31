@@ -7,31 +7,31 @@ html {
 
 .mdx {
   /* @apply text-foreground; */
-  @apply text-gray-800;
+  @apply mb-20 text-gray-800;
 }
 
 .mdx h1 {
-  @apply scroll-m-20 text-xl font-bold tracking-tight;
+  @apply mt-10 scroll-m-20 text-xl font-bold tracking-tight;
 }
 
 .mdx h2 {
-  @apply scroll-m-20 text-xl font-semibold tracking-tight;
+  @apply mt-10 scroll-m-20 text-xl font-semibold tracking-tight;
 }
 
 .mdx h3 {
-  @apply scroll-m-20 text-xl font-medium tracking-tight;
+  @apply mt-10 scroll-m-20 text-xl font-medium tracking-tight;
 }
 
 .mdx h4 {
-  @apply scroll-m-20 text-lg font-bold tracking-tight;
+  @apply mt-10 scroll-m-20 text-lg font-bold tracking-tight;
 }
 
 .mdx h5 {
-  @apply scroll-m-20 text-lg font-semibold tracking-tight;
+  @apply mt-10 scroll-m-20 text-lg font-semibold tracking-tight;
 }
 
 .mdx h6 {
-  @apply scroll-m-20 text-lg font-medium tracking-tight;
+  @apply mt-10 scroll-m-20 text-lg font-medium tracking-tight;
 }
 
 .mdx :where(h1, h2, h3, h4, h5, h6) a::after {
