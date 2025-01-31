@@ -1,0 +1,22 @@
+---
+import { EMAIL, GITHUB_URL, LINKEDIN_URL } from '@/constants';
+import { EmailIcon, GithubIcon, LinkedInIcon } from '@/components/icons/sns';
+---
+
+<footer class="space-y-2">
+  <div class="text-muted-foreground flex items-center justify-center gap-4">
+    <a href={`mailto:${EMAIL}`}>
+      <EmailIcon class="size-5 transition-colors hover:text-gray-900" />
+    </a>
+    <a href={GITHUB_URL} target="_blank">
+      <GithubIcon class="size-5 transition-colors hover:text-[#1e2227]" />
+    </a>
+    <a href={LINKEDIN_URL} target="_blank">
+      <LinkedInIcon class="size-5 transition-colors hover:text-[#0e67c4]" />
+    </a>
+    <!-- <X class="size-5 hover:text-gray-900" /> -->
+  </div>
+  <div class="text-muted-foreground text-center text-sm">
+    Copyright 2025. 1lsang All rights reserved.
+  </div>
+</footer>
