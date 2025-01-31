@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @plugin "tailwindcss-animate";
 
@@ -24,7 +24,7 @@
     --destructive-foreground: hsl(210 40% 98%);
     --ring: hsl(215 20.2% 65.1%);
   }
- 
+
   .dark {
     --background: hsl(224 71% 4%);
     --foreground: hsl(213 31% 91%);
@@ -47,7 +47,6 @@
     --ring: hsl(216 34% 17%);
   }
 }
-
 
 @theme {
   --color-background: var(--background);
