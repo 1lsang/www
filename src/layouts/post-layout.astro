@@ -4,6 +4,7 @@ import '@/styles/mdx.css';
 import type { InferEntrySchema } from 'astro:content';
 import BaseLayout from './base-layout.astro';
 import PostInformation from '@/components/post-information.astro';
+import GiscusScript from '@/components/giscus-script.astro';
 
 export interface Props {
   frontmatter: InferEntrySchema<'content'>;
@@ -18,5 +19,6 @@ const { frontmatter } = Astro.props;
     <article class="mdx">
       <slot />
     </article>
+    <GiscusScript />
   </div>
 </BaseLayout>

@@ -1,0 +1,50 @@
+---
+const { origin } = Astro.url;
+---
+
+<script
+  src="https://giscus.app/client.js"
+  data-repo="1lsang/www"
+  data-repo-id="R_kgDONo9inA"
+  data-category="Comments"
+  data-category-id="DIC_kwDONo9inM4CmgJE"
+  data-mapping="pathname"
+  data-strict="0"
+  data-reactions-enabled="1"
+  data-emit-metadata="0"
+  data-input-position="top"
+  crossorigin="anonymous"
+  data-theme={`${origin}/giscus-light.css`}
+  async></script>
+
+<script is:inline defer>
+  function updateGiscusTheme() {
+    const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+
+    const iframe = document.querySelector('iframe.giscus-frame');
+    if (!iframe) return;
+
+    iframe.contentWindow.postMessage(
+      {
+        giscus: {
+          setConfig: { theme: `${new URL(document.URL).origin}/giscus-${theme}.css` },
+        },
+      },
+      'https://giscus.app/',
+    );
+  }
+
+  const observer = new MutationObserver(updateGiscusTheme);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+  function handleMessage(event) {
+    if (event.origin !== 'https://giscus.app') return;
+    if (!(typeof event.data === 'object' && event.data.giscus)) return;
+
+    updateGiscusTheme();
+    console.log('theme changed');
+    window.removeEventListener('message', handleMessage);
+  }
+
+  window.addEventListener('message', handleMessage);
+</script>
