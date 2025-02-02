@@ -90,7 +90,7 @@ main {
 }
 
 main .gsc-main {
-  padding: 1rem 1.5rem;
+  padding: 1rem 0;
   gap: 0.5rem;
 }
 
