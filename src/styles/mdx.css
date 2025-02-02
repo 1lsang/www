@@ -7,7 +7,7 @@ html {
 
 .mdx {
   /* @apply text-foreground; */
-  @apply mb-20 text-gray-800;
+  @apply text-gray-800;
 }
 
 .mdx h1 {
