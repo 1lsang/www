@@ -60,6 +60,10 @@ html {
   @apply content-['_↗'];
 }
 
+.mdx pre:has(code) {
+  @apply mt-2 rounded p-4 text-xs;
+}
+
 .mdx code:not(pre code) {
   @apply border-foreground/10 bg-accent rounded border px-0.5 text-sm font-semibold;
 }
