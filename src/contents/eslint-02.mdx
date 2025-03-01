@@ -1,0 +1,160 @@
+---
+title: ESLint config 이제는 알고 쓸 수 있다.
+date: 2025-02-28
+description: 그 많던 eslintrc는 누가 다 먹었을까.
+---
+
+지난 글에서 ESLint가 어떻게 코드를 분석하는지 알아봤습니다. ESLint가 코드를 분석하여 어떤 구문에 대해서 경고하거나 에러를 발생시키고 더 나아가 fix하기 위해서는 규칙(rule), 커스텀 규칙을 가지는 플러그인, sharable config 등을 정의해두는 config 파일이 필요합니다.
+
+지난 글에서 ESLint v9부터는 기존에 사용하던 config 시스템을 버리고 flat config 방식을 사용한다고 간단히 언급했는데요. 정확히는 ESLint v8.21 버전에 새로운 config 시스템인 flat config가 추가되었고, ESLint v9.0 이후 기존 config 시스템이 deprecate 되었습니다. **현재는 ESLint 팀은 flat config 시스템을 사용하는 것을 권고하고 있습니다.**
+
+> 물론 ESLint 9에서도 기존 config 시스템을 사용할 수 있습니다. 하지만 default는 flat config로 설정되어 있으며 환경변수를 따로 설정해주어야 합니다.
+>
+> 관련 내용(공식 문서)
+> This config system is deprecated and not enabled by default. To opt-in, set the `ESLINT_USE_FLAT_CONFIG`environment variable to `false`. [View the updated documentation](https://eslint.org/docs/latest/use/configure/configuration-files).
+
+ESLint 팀은 왜 기존 config 시스템을 버리고 새로운 config 시스템을 구축했을까요?
+
+
+<br />
+<details>
+  <summary>TMI</summary>
+  여담이지만 `.eslintrc` 파일이 최신 버전의 eslint에서 제대로 동작하지 않는다며, 이전 버전을 명시하여 설치하는 케이스를 본적도 있습니다. 킥은 그래서 최신 버전은 쓰면 안 된다는 이야기였습니다. 왜 그런지 알아보려고도 하지 않은채 말이죠.
+</details>
+
+## 기존 ESLint config 시스템의 문제
+
+기존의 ESLint의 config system은 config cascade를 통해서 린팅시키는 파일이 있는 디렉토리에서부터 상위 디렉토리로 가면서 발견된 `.eslintrc`(혹은 json, yaml, js 등의 eslint config file) 파일을 병합하여 만들어지는 규칙을 기반으로 코드에서 문제점을 찾았습니다. 이 cascade 시스템을 통해서 특정 디렉토리에 대한 규칙을 생성할 수 있었습니다. 하지만 ESLint를 발전시키는 과정에서 아래와 같은 여러가지 기능이 추가되었고 config 시스템은 점점 복잡해졌습니다.
+
+- extends: 다른 config를 확장할 수 있는 기능
+
+* Personal config( ~/.eslintrc): root에서도 eslint 설정파일을 찾지 못하면 개인 설정을 사용하는 기능
+* 여러 config 파일 형식 지원(.eslintrc, json, yaml, javascript 등)
+  - js와 non-js 포맷 사이에 호환이 되지 않아 정규식 객체를 전달해야하는 규칙이 생겼는데, non-js config에서는 사용할 수 없었음. 하지만 플러그인 규칙이 이 기능에 의존하여 다시 js 포맷을 없앨 수 없었음
+* 공유 config & dependencies
+* root key: 캐스캐이딩 문제 방지 (root: true로 설정시 상위 디렉토리 탐색 X)
+* overrides key
+  - eslint가 린팅하는 파일 하위 집합에 대한 구성을 추가로 수정할 수 있도록 하는 기능으로 비슷한 부분을 캐스케이딩 보다 잘 수행하였음 (하지만 캐스케이딩 기능을 없애지는 않았음)
+
+결국 ESLint 팀은 eslint를 버리고 새로 시작하자는 의견과 ESLint를 개선하자는 의견으로 나뉘었고, 새로운 config 시스템을 구축하기로 결정했고, 8.21 버전에서 새로운 config 시스템인 flat config를 처음으로 도입하게되었습니다.
+
+> 이 배경에 대해서 조금 더 자세히 알고 싶다면 [ESLint's new config system, Part 1: Background](https://eslint.org/blog/2022/08/new-config-system-part-1/)를 읽어보시면 좋습니다.
+
+## flat config
+
+그렇다면 flat config가 도대체 무엇이고, 기존 시스템과 비교해서 어떤 장점을 가질까요? 한마디로 하면 flat config는 **JS런타임을 기반으로 설정 객체를 배열에 나열하는 형태로 구성하는 config 시스템**입니다.
+
+중첩된 객체 형태로 구성되던 이전 config 시스템(overrides, extends 등)과 달리, flat config에서는 설정 객체들을 배열로 나열하여 설정의 우선 순위와 적용 방식을 명확하게 합니다. 또한, js 런타임을 사용하여 Javascript의 모듈 시스템을 활용할 수도 있습니다.
+
+위에서 언급했다시피 ESLint의 기존 config system은 여러 설정 파일, 그리고 다양한 파일 형식(+package.json)을 지원했습니다. 반면에 ESLint의 새로운 config system인 flat config는 단 하나의 설정 파일에서 모든 설정을 저장할 수 있고, 파일 형식을 js 기반으로 제한하여 js 런타임으로 로딩 가능하여 다양한 형식의 파일을 구문분석할 필요가 없습니다. (기존 시스템에서는 여러 확장자의 파일을 분석하여 새로운 config를 만드는 작업이 필요했습니다.)
+
+flat config는 다음과 같은 특징을 가지고 있습니다.
+
+- 논리적 기본값
+  - ecmaVersion: latest → 명시적으로 하위버전을 설정하려고 하는게 아니라면 최신 ecma script로 사용
+  - sourceType: module → 기본적으로 ESM을 작성하고 있다고 가정(js & mjs), cjs 파일의 경우 commonjs
+  - flat config를 사용하면 js, mjs, cjs 파일을 검색하여 세가지가 모두 자동으로 검색
+- 환경설정 정의하는 방법 통일 `eslint.config.js`
+  - 여러 설정파일, 설정파일 형식, package.json까지 지원하던 방식과 달리 float config는 단 하나의 파일에서 모든 설정을 저장할 수 있음. 파일 형식과 위치를 제한하여 js 런타임으로 로딩하여 구문 분석할 필요가 없음
+  - eslint cli 사용시 현재 작업 디렉터리에서 eslint.config.js를 검색하고 찾을 수 없으면 상위 디렉토리로 가면서 검색(여러 구성파일을 찾아야했던것과 달리 파일 엑세스를 줄일 수 있음)
+- 기존 사용자들이 익숙하게 사용할 수 있도록 rule을 구성하는 방법은 변경하지 않음
+- js 런타임 직접 사용 (즉, 파일을 읽어서 환경설정을 새로 구성하는 것이 아니라 런타임을 직접 사용하는 것으로 복잡성을 줄이고 활용)
+- top-level keys 개선
+  - 앞서 말한 것처럼 overrides, extends 등 최상위 레벨의 설정 키 값들이 매우 많고 복잡하였고, 이를 개선하였음
+- 기존 플러그인 작동
+  - ESLint 생태계를 이루는 수많은 기존 플러그인들이 정상적으로 동작함
+- 이전 버전 호환성
+  - `FlatCompat` 클래스를 통한 기존 `.eslintrc` 파일을 사용할 수 있음
+
+특징들을 살펴보면 기존 ESLint config 시스템과의 호환성을 위해 많은 노력을 한 것을 볼 수 있습니다. 이러한 노력으로 flat config로의 전환을 쉽고 빠르게 할 수 있도록 있습니다.
+
+## 블로그에 직접 eslint config 설정해보기
+
+그러면 ESLint config 파일을 직접 설정해볼까요? eslint의 다양한 rule을 직접 구성해보는 것도 좋겠지만 일반적으로 많이 사용하는 규칙으로 구성되는 추천 규칙들을 사용해보는 것으로 하겠습니다.
+
+> 자세한 내용은 공식 문서의 Getting Started 참고하세요!
+
+공식 문서의 스크립트로 먼저 eslint.config.js 기본 파일을 만들어주세요!
+
+```shell
+npm init @eslint/config@latest
+```
+
+제 블로그는 Astro 기반으로 Typescript를 사용하고 있습니다. 그리고 ES Module을 사용하고 있어요. 그래서 아래와 같이 응답했습니다.
+
+```plaintext
+✔ How would you like to use ESLint? · problems
+✔ What type of modules does your project use? · esm
+✔ Which framework does your project use? · none
+✔ Does your project use TypeScript? ›  Yes
+```
+
+결과로 아래와 같은 config 파일이 생성되었습니다.
+
+```js
+// eslint.config.js
+import globals from 'globals';
+import pluginJs from '@eslint/js';
+import tseslint from 'typescript-eslint';
+
+/** @type {import('eslint').Linter.Config[]} */
+export default [
+  { files: ['**/*.{js,mjs,cjs,ts}'] },
+  { languageOptions: { globals: globals.browser } },
+  pluginJs.configs.recommended,
+  ...tseslint.configs.recommended,
+];
+```
+
+내용을 간략하게 살펴보면 아래와 같습니다.
+
+- js, mjs, cjs, ts 파일에 대해서 사용
+- browser에서 실행되는 코드
+- ESLint와 Typescript ESLint의 추천설정(recommended) 사용
+
+제 블로그는 astro 기반이면서, react 컴포넌트를 부분적으로 사용하고 있습니다. 따라서 아래와 같이 설정을 바꾸어 주었습니다.
+
+```javascript
+import globals from 'globals';
+import eslint from '@eslint/js';
+import tseslint from 'typescript-eslint';
+import eslintAstro from 'eslint-plugin-astro';
+
+export default tseslint.config([
+  { files: ['**/*.{js,jsx,ts,tsx,astro}'] },
+  { ignores: ['.astro/**/*', 'dist/**/*'] },
+  { languageOptions: { globals: globals.browser } },
+  eslint.configs.recommended,
+  ...tseslint.configs.recommended,
+  ...eslintAstro.configs.recommended,
+]);
+```
+
+- `astro` 파일, 그리고 `js`, `jsx`, `ts`, `tsx` 파일에 대해서 사용하도록 설정을 변경했습니다.
+- 빌드 결과물과 astro에서 자동 생성된 타입을 제외했습니다.
+- astro 프레임워크 eslint 플러그인을 설치하고 추천 설정을 추가해주었습니다.
+
+설정을 완료하고 eslint를 실행 시켜보았습니다.
+
+```bash
+❯ pnpm dlx eslint .
+
+❯ Result
+✖ 3 problems (3 errors, 0 warnings)
+```
+
+3개의 오류가 발견됐습니다. ~~고치러 가야겠네요...!~~
+
+### 마무리
+
+이번 게시글에서는 ESLint의 새로운 config 시스템인 flat config에 대해서 알아보고, flat config를 기반으로 현재 블로그의 ESLint config를 구성해보았습니다.
+
+flat config는 **기존 시스템의 복잡함을 해결한 config 시스템**입니다. flat config는 설정을 여러개의 작은 객체로 나누어 배열로 구성하고, 그 설정을 index 순으로 적용하여 기존의 계층 구조보다 규칙을 이해하기 쉽습니다. 또한, JS 모듈 기반으로 설정 파일을 모듈화하고 재사용할 수 있고 플러그인을 직접 객체로 import하여 기존 문자열 형태로 규칙을 참조하는 모호함도 줄어들었습니다.
+
+ESLint는 거의 매일같이 사용하는 도구임에도 불구하고 생각없이 사용하고 있었던 것 같습니다. ESLint에 대해서 이해하지 않고 이미 사용했던 설정들을 가져와 사용하기 바빴던 것 같습니다. 저번 글을 통해서 eslint의 동작 원리를, 이번 글을 통해서 eslint config에 대해서 이해할 수 있었습니다. 익숙한 기술이라도 그 원리를 이해하지 못한다면 그 기술에 대해서 안다고 말할 수 없는 것 같습니다. 여러분도 익숙하다고 생각했던 기술들을 자세히 공부해보는건 어떠신가요?
+
+Reference
+
+- [ESLint's new config system, Part 1: Background](https://eslint.org/blog/2022/08/new-config-system-part-1/)
+- [ESLint's new config system, Part 2: Introduction to flat config](https://eslint.org/blog/2022/08/new-config-system-part-2/)
+- [ESLint's new config system, Part 3: Developer preview](https://eslint.org/blog/2022/08/new-config-system-part-3/)
