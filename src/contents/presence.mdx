@@ -93,48 +93,52 @@ React의 렌더링 과정에 대해서 이해하면 원인을 알 수 있습니�
 
 즉, 컴포넌트에 exit 애니메이션을 추가해도 class 추가는 상태 업데이트 이후에 발생하며, 이와 동시에 컴포넌트는 React에 의해 dom에서 unmount 됩니다. 따라서 exit 애니메이션은 발생하지 않습니다.
 
-이 문제를 해결하기 위해서는 **DOM에서 컴포넌트를 unmount하는 시점을 지연시켜야 합니다.** 앞서 말씀드린 방법 중 `setTimeout`을 사용하는 케이스는 unmount를 지연하는 방법 입니다. 하지만 애니메이션이 중단되거나 취소된 경우는 어떻게 되나요? 부자연스럽게 사라집니다. 또한, 브라우저가 성능상의 이유로 애니메이션을 지연시키면 타이밍에 차이가 발생해 애니메이션이 정확하게 동작하지 않습니다.
+이 문제를 해결하기 위해서는 **DOM에서 컴포넌트를 unmount하는 시점을 지연시켜야 합니다.** 앞서 말씀드린 방법 중 `setTimeout`을 사용하는 것이 바로 unmount를 지연시키는 방법 입니다. 하지만 애니메이션이 중단되거나 취소된 경우는 어떻게 되나요? 부자연스럽게 사라집니다. 또한, 브라우저가 성능상의 이유로 애니메이션을 지연시키면 타이밍에 차이가 발생해 애니메이션이 정확하게 동작하지 않기도 합니다.
 
-즉, 이런 문제를 해결하기 위해서는 DOM에서 컴포넌트를 unmount하는 시점을 **애니메이션이 끝나는 시점**으로 지연시켜야 합니다.
+즉, 이런 문제를 해결하기 위해서는 DOM에서 컴포넌트를 unmount하는 시점을 **애니메이션이 끝나는 시점**으로 지연시켜야 합니다. 애니메이션이 끝나는 시점을 어떻게 감지하고 컴포넌트를 unmount할 수 있을까요?
 
 ## Presence 컴포넌트
 
-하지만 Radix UI, Chakra UI, motion/react 등의 라이브러리에서는 컴포넌트의 언마운트와 애니메이션이 모두 잘 동작합니다. 어떻게 가능한 것일까요? 이 라이브러리들을 살펴보면 공통적으로 `Presence`라는 컴포넌트를 찾아볼 수 있습니다.
+Radix UI, Chakra UI, motion/react 등 라이브러리를 사용하면 컴포넌트의 언마운트와 애니메이션이 모두 잘 동작하는 것을 볼 수 있습니다. 그리고 이 라이브러리들은 공통적으로 컴포넌트 exit 애니메이션을 위해 `Presence`라는 컴포넌트를 사용합니다.
 
-> Radix UI의 경우 내부 구현으로 사용하고 있으며, [npm 패키지](https://www.npmjs.com/package/@radix-ui/react-presence)에서 내부 유틸리티 컴포넌트임을 명시하고 있습니다.
+- Radix UI는 내부 구현으로 사용하고 있으며, [npm 패키지](https://www.npmjs.com/package/@radix-ui/react-presence)에서 내부 유틸리티 컴포넌트임을 명시하고 있습니다.
+- Chakra UI는 Utility 컴포넌트로 [Presence](https://chakra-ui.com/docs/components/presence)를 제공하고 있습니다.
+- 애니메이션 라이브러리 motion에서는 exit 애니메이션을 React에서 사용하고자 할 경우 `AnimatePresence` 컴포넌트를 사용하라고 명시되어 있습니다.
 
-> 애니메이션 라이브러리인 motion에서는 exit 애니메이션을 React에서 사용하고자 할 경우 `AnimatePresence` 컴포넌트를 사용하도록 명시되어 있습니다.
-> ![motion 공식 문서 랜딩 페이지 - Exit animtions](./presence/motion.png)
+  ![motion 공식 문서 랜딩 페이지 - Exit animtions](./presence/motion.png)
 
-그 중 Radix UI의 `Presence` 컴포넌트를 분석하여 컴포넌트 Unmount를 지연시키는 방법에 대해 살펴봅시다.
+이런 오픈 소스 라이브러리의 코드를 살펴보면 **애니메이션이 끝나는 시점**을 감지하여 DOM에서 컴포넌트를 unmount하는 방법을 알 수 있을 것 같습니다. 최근에 웹 프론트엔드에서 가장 많이 사용되고 있는 **shadcn/ui**의 기반이 된다고 볼 수 있는 라이브러리인 Radix UI `Presence` 컴포넌트를 분석하면서 컴포넌트 Unmount를 애니메이션 종료 시점으로 지연시키는 방법에 대해 살펴봅시다.
 
 ## Radix UI Presence 컴포넌트
 
-`Presence` 컴포넌트의 코드를 살펴보기 전에 알고 가야할 부분들에 대해서 먼저 설명 드리려고 합니다.
+`Presence` 컴포넌트의 코드를 살펴보기 전에 알고 가면 좋은 부분에 대해서 먼저 설명 드리려고 합니다. DOM의 animation 관련 이벤트, `useLayoutEffect`, `useRef`에 대한 내용 입니다.
 
-### 배경지식
+### CSS Animation 관련 DOM 이벤트
 
-**animation 관련 DOM 이벤트**
-DOM은 생각보다 많은 종류의 이벤트를 가지고 있습니다. 그 중 CSS의 애니메이션과 관련된 아래 4개의 이벤트가 있습니다. (마찬가지로 CSS Transition과 관련된 이벤트도 존재합니다.)
+DOM은 생각보다 많은 종류의 이벤트를 가지고 있고, 그 중에는 CSS의 동작과 관련된 이벤트도 존재합니다. 아래 4개의 이벤트는 CSS의 Animation과 관련된 이벤트이며, Radix UI는 이벤트들을 사용해 컴포넌트의 Unmount 시점을 제어합니다.
 
 - `animationstart`: 애니메이션이 시작될 때 발생
 - `animationend`: 애니메이션이 완료될 때 발생
 - `animationiteration`: 애니메이션이 반복될 때마다 발생
 - `animationcancel` 애니메이션이 취소될 때 발생
+  > CSS Transition과 관련된 이벤트(`transitionstart`, `transitionend`, `transitioncancel`, `transitionrun`)도 존재합니다.
 
-**`useLayoutEffect`**
-`useLayoutEffect`는 `useEffect`와 유사하지만 실행 시점이 다릅니다. DOM 업데이트 후 브라우저 페인팅 전에 동기적으로 실행되며, DOM 측정이 필요하거나 화면 깜빡임 방지가 필요할 때 사용합니다.
+### **`useLayoutEffect`**
+`useLayoutEffect`는 `useEffect`와 유사하지만 실행 시점이 다른 React의 내장 Hook 중 하나입니다. `useLayoutEffect`는 **DOM 업데이트 후 브라우저 페인팅 전에 동기적으로 실행**되며, 일반적인 코드를 작성하는데에 사용할 일이 드물며 DOM 요소의 크기나 위치의 측정이 필요하거나 화면 깜빡임 방지가 필요할 때 주로 사용합니다. (일반적으로 UI 라이브러리에서 사용)
 
-**`useRef`**
-`useRef`는 주로 DOM에 직접 접근하기 위해서 사용하는 경우가 많습니다. 하지만 useRef는 그 외에도 다양한 방법으로 사용할 수 있습니다. 컴포넌트의 전체 생명주기 동안 지속되는 `useRef`의 특징을 활용하여 렌더링 사이에 값을 유지하기 위해서 사용하는 방법도 그 중 하나입니다.
+### **`useRef`**
+`useRef`는 렌더링이 필요하지 않은 값을 참조할 수 있는 Hook입니다. 주로 DOM에 직접 접근하기 위해서 사용하는 경우가 많습니다. 하지만 `useRef`는 그 외에도 다양한 방법으로 사용할 수 있는데, 컴포넌트의 전체 생명주기 동안 지속되는 `useRef`의 특징을 활용하여 렌더링 사이에 값을 유지하기 위해서 사용하는 방법도 그 중 하나입니다.
 
 위 세가지 내용에 대해서 이해한 후, Radix UI의 `Presence` 컴포넌트의 코드를 살펴보겠습니다.
 
 ### Presence 컴포넌트
 
-Presence 컴포넌트의 코드는 간단합니다.
+> `@radix-ui/presence` 패키지의 1.1.3-rc.6버전 코드를 기반으로 작성한 글 입니다.
+
+`Presence` 컴포넌트의 코드는 간단합니다.
 
 ```tsx
+// @radix-ui/primitives/packages/react/presence/src/presence.tsx
 interface PresenceProps {
   children: React.ReactElement | ((props: { present: boolean }) => React.ReactElement);
   present: boolean;
@@ -164,10 +168,14 @@ const Presence: React.FC<PresenceProps> = (props) => {
 ```
 
 - **props**
-  - `children`: 자식 컴포넌트 혹은 render props
+  - `children`: 자식 컴포넌트 혹은 render prop function
   - `present`: 자식 컴포넌트의 현재 마운트 상태
+- **return**
+  - 조건에 따른 컴포넌트
 
-먼저 prop를 살펴보면 `usePresence`의 `isPresent` 값을 기반으로 애니메이션이 완료될 때까지 언마운트를 지연시켜 퇴장 애니메이션을 부드럽게 처리하는 컴포넌트임을 유추할 수 있습니다.
+먼저 return을 살펴보면 `usePresence`의 `isPresent` 값을 기반으로 조건에 따라 컴포넌트를 return 하고 있는 것을 확인할 수 있습니다. `present`값을 기반으로 컴포넌트의 마운트를 제어하면서 exit 애니메이션 종료 시점으로 unmount를 지연시키는 컴포넌트의 동작과 return 값을 기반으로 생각해보면, `isPresent`의 값은 present의 값을 기반으로 하면서 애니메이션이 완료될 때 falsy value로 변경되는 값임을 유추할 수 있습니다.
+
+또한, `children`이 함수인 경우 `forceMount`로 처리하며 children에 `isPresent`의 값을 넘겨주고 있으므로
 
 1. 자식 컴포넌트를 받아서 마운트 상태에 따라 마운트하거나
 
@@ -177,17 +185,19 @@ const Presence: React.FC<PresenceProps> = (props) => {
 </Presence>
 ```
 
-2. children으로 render props를 넘겨받아 presence 훅의 현재 렌더링 상태를 프로퍼티로 넘겨주어 렌더링을 위임
+2. children으로 render props를 넘겨받아 presence 훅의 현재 렌더링 상태를 프로퍼티로 넘겨주어 렌더링을 위임하는
 
 ```tsx
 <Presence present={isOpen}>{({ present }) => present && <Toast />}</Presence>
 ```
 
-하여 사용할 수 있습니다.
+컴포넌트임을 알 수 있습니다.
 
 컴포넌트를 unmount하는 시점을 지연시키는 방법은 `usePresence`에 나타나 있을 것 같으니 해당 hook 내부의 구현을 확인해봅시다.
 
 #### usePresence
+
+`usePresence` hook의 코드는 조금 복잡해보이지만 순차적으로 분석해봅시다.
 
 ```ts
 function usePresence(present: boolean) {
@@ -222,7 +232,7 @@ function usePresence(present: boolean) {
 }
 ```
 
-usePresence는 다음과 같은 상태를 가집니다.
+`usePresence`는 다음과 같은 값을 가집니다.
 
 - **props**
   - `present`: 부모 컴포넌트에서 전달받은 마운트 상태
@@ -231,7 +241,7 @@ usePresence는 다음과 같은 상태를 가집니다.
   - `stylesRef`: CSS 스타일
   - `prevPresentRef`: 변경 이전 `present`의 값
   - `prevAnimationNameRef`: 과거 애니메이션 이름
-  - `state`: 컴포넌트 마운트의 내부 진행 상태 (애니메이션의 진행 상태)
+  - `state`: 컴포넌트 내부의 실제 마운트 상태 (애니메이션의 진행 상태)
     - `mounted`: 마운트된 경우 (애니메이션 시작 전)
     - `unmountSuspended`: 언마운트 지연 상태 (애니메이션 진행중)
     - `unmounted`: 언마운트된 경우 (애니메이션 종료 후)
@@ -242,11 +252,9 @@ usePresence는 다음과 같은 상태를 가집니다.
   - `ref`
     - DOM 노드, 스타일을 받아와 `node`, `stylesRef`를 업데이트할 수 있도록 하는 `ref`
 
-내부적으로 애니메이션 진행 상태를 관리하고 `isPresent`를 통해서 컴포넌트 Unmount를 지연시킵니다.
+return 값을 살펴보면 내부적으로 마운트 상태(애니메이션 진행 상태)를 관리하고, 이를 기반으로 `isPresent`값을 반환하여 컴포넌트 unmount를 지연시키는 것을 알 수 있습니다.
 
-내부 `useEffect`와 `useLayoutEffect`를 통해서 어떤 방식으로 동작하는지 살펴봅시다.
-
-1. `state`가 변경되면 `mounted`일 경우 이전 애니메이션 이름을, 아니면 `none`으로 `prevAnimationNameRef`에 할당합니다.
+중간에 생략한 부분에 존재하는 `useEffect`와 `useLayoutEffect`를 통해 어떤 방식으로 동작하는지 알 수 있을 것 같네요. 천천히 살펴봅시다.
 
 ```ts
 React.useEffect(() => {
@@ -255,14 +263,7 @@ React.useEffect(() => {
 }, [state]);
 ```
 
-2. present 값이 변경되고, DOM 변경이 화면에 반영되기 전에 현재 애니메이션과 과거의 애니메이션 이름을 가져와 변경이 있었는지 확인합니다.
-   - 과거 `present`를 체크해서 상태가 변했는지 체크
-   - `present`가 변한 경우,
-     - 현재 `present`가 `true`인 경우: 내부 상태 `mounted`로 업데이트
-     - 종료 애니메이션이 없거나 요소가 화면에 나타나지 않는 경우(현재 애니메이션 이름이 `none`이거나 `display`가 `none`인 경우): 내부 상태 `unmounted`로 업데이트
-     - 화면에 요소가 보이면서 `present`가 `false`인 경우:
-       - `present`가 `true` → `false` 변경이고 애니메이션 이름이 다른 경우: 내부 상태 `unmountSuspended`로 업데이트
-       - 그 외의 경우: 내부 상태 `unmounted`로 업데이트
+- `state`(내부 마운트 상태)가 변경되면 `mounted`일 경우 현재 애니메이션 이름을, 아니면 `none`으로 `prevAnimationNameRef`에 할당합니다. 애니메이션 이름을 ref로 설정하여 애니메이션 이름의 변경을 체크하여 unmount 지연 상태를 만듭니다.
 
 ```ts
 useLayoutEffect(() => {
@@ -293,14 +294,16 @@ useLayoutEffect(() => {
 }, [present, send]);
 ```
 
-3. node가 있을 경우, 아래 이벤트 핸들러를 통해 애니메이션의 진행 상태를 업데이트 합니다.
-
-- handleAnimateEnd
-  - 현재 활성화된 애니메이션에 대해서만 ANIMATION_END를 트리거
-  - 애니메이션이 끝나거나 취소되었을 때, `state`를 `unmounted`로 업데이트
-  - React 18 동시성으로 애니메이션이 끝나고 화면이 깜빡거리게 됩니다. 이를 방지하기 위해 `animation-fill-mode`를 `forwards`로 처리하여 노드가 마지막 키프레임의 스타일을 유지하도록 하여 플래시를 제거합니다.
-- `handleAnimateStart`
-  - 애니메이션이 시작할 때 이전 애니메이션 이름을 현재 애니메이션 이름으로 업데이트
+- `present`(부모 컴포넌트의 상태) 값이 변경되고, DOM 변경이 화면에 반영되기 전에 현재 애니메이션과 과거의 애니메이션 이름을 가져와 변경이 있었는지 확인합니다.
+  - 과거 `present`를 체크해서 상태가 변했는지 체크
+  - `present`가 변한 경우,
+    - 현재 `present`가 `true`인 경우 (false → true 이므로 Mount 진행)
+      - 내부 상태 `mounted`로 업데이트
+      - 마운트 될 때는 별다른 처리 없이 animation 정상 동작
+    - 현재 `present`가 `false`인 경우 (true -> false 이므로 Unmount 진행)
+      - 종료 애니메이션이 없거나(현재 애니메이션 이름이 `none`) 요소가 화면에 나타나지 않는 경우(`display`가 `none`인 경우) - 내부 상태 `unmounted`로 즉시 업데이트 (바로 unmount)
+      - 이전 `present`의 값이 `true`면서 애니메이션 이름이 변경된 경우(`present` 상태를 기반으로 animation 이름이 변경되었음) - 내부 상태 `unmountSuspended`로 업데이트(unmount 지연을 통해 애니메이션을 보여줌)
+      - 그 외의 경우 - 내부 상태 `unmounted`로 업데이트 (바로 unmount)
 
 ```ts
 useLayoutEffect(() => {
@@ -346,70 +349,110 @@ useLayoutEffect(() => {
 }, [node, send]);
 ```
 
-위와 같이 Radix UI는 `Presence` 컴포넌트에서 DOM 요소의 존재 여부와 애니메이션 상태를 제어하여 컴포넌트의 Unmount를 지연시켜 exit 애니메이션을 보여줍니다. 애니메이션 이벤트와 React의 상태 관리를 통합하여 애니메이션 타이밍을 관리하는 로직을 추상화하여 선언적인 방법으로 exit 애니메이션을 제어할 수 있습니다.
+- node가 변경되는 경우, 애니메이션의 진행 상태를 업데이트하는 아래 이벤트 핸들러를 node에 등록합니다.
+  - handleAnimateEnd
+    - 현재 활성화된 애니메이션에 대해서만 이벤트 핸들러 실행
+    - 애니메이션이 끝나거나 취소되었을 때, `state`를 `unmounted`로 업데이트
+    - React 18 동시성으로 애니메이션이 끝나고 화면이 깜빡거리게 됩니다. 이를 방지하기 위해 `animation-fill-mode`를 `forwards`로 처리하여 노드가 마지막 키프레임의 스타일을 유지하도록 하여 플래시를 제거합니다.
+  - `handleAnimateStart`
+    - 애니메이션이 시작할 때 이전 애니메이션 이름을 현재 애니메이션 이름으로 업데이트
+
+> 이 때, `useEffect`와 `animationstart`가 동일한 동작을 하는데, 이는 React의 렌더링 사이클과 실제 브라우저의 렌더링 타이밍을 둘다 고려하여 동작의 신뢰성을 확보하기 위함입니다. 이 둘을 함께 사용함으로써 React의 가상 DOM 상태와 실제 브라우저 렌더링 사이의 차이에도 안정적인 동작을 보장합니다.
+
+위의 `useEffect`와 `useLayoutEffect`를 기반으로 컴포넌트 마운트시에는 애니메이션이 정상동작하므로 별다른 처리를 하지 않았고, 컴포넌트 언마운트 시에는 애니메이션 이름의 변경을 기반으로 언마운트를 지연시키고 애니메이션 종료시 언마운트하도록 처리한 것을 알 수 있습니다. 그럼 실제로는 어떻게 동작하는지 살펴봅시다.
 
 ## Presence 컴포넌트를 사용한 모달 애니메이션 처리 플로우
 
-이해를 돕기 위해 내부 구현을 기반으로 `Presence` 컴포넌트가 모달 컴포넌트와 함께 작동하는 과정을 단계별로 살펴보겠습니다. 여기서 모달에는 `fadeIn`과 `fadeOut` 애니메이션을 적용하였습니다.
+`Presence` 컴포넌트가 모달 컴포넌트와 함께 작동하는 과정을 단계별로 살펴보겠습니다.
 
-### 모달 열기 (isOpen이 false → true로 변경)
+```tsx
+// Modal.tsx
+export const Modal = ({ isOpen, onClose, children } : ModalProps) => {
+  return (
+    {/* modal-show: fadeIn keyframe / modal-hide: fadeOut keyframe */}
+    <div className={cn('modal-overlay', isOpen ? 'modal-show' : 'modal-hide')}>
+      <div className={cn('modal-content', isOpen ? 'modal-show' : 'modal-hide')}>
+        <CloseButton onClick={onClose} />
+        {children}
+      </div>
+    </div>
+  );
+};
 
-1. 상태 변경으로 `isOpen`이 `true`로 바뀝니다.
-2. `Presence` 컴포넌트의 `present` prop이 `true`로 설정됩니다.
-3. `usePresence` 훅 내부에서 다음과 같은 처리가 일어납니다:
-   - `present` 값이 변경되었음을 감지합니다.
-   - 상태 머신에 `MOUNT` 이벤트를 전송합니다.
-   - 상태가 `unmounted`에서 `mounted`로 전환됩니다.
-   - `isPresent` 값이 `true`가 되어 모달이 렌더링됩니다.
-4. 모달 DOM 요소가 생성되고 ref 콜백이 실행됩니다.
-   - 모달 요소에 대한 참조가 `node` 상태에 저장됩니다.
-   - 요소의 계산된 스타일이 `stylesRef`에 저장됩니다.
-   - 애니메이션 이벤트 리스너가 모달 요소에 추가됩니다.
-5. 모달이 화면에 표시되고 `fadeIn` 애니메이션이 실행됩니다.
-6. 애니메이션 시작 시 `animationstart` 이벤트가 발생합니다:
-   - `handleAnimationStart` 함수가 호출됩니다.
-   - 현재 애니메이션 이름(`fadeIn`)이 `prevAnimationNameRef`에 저장됩니다.
-7. 애니메이션이 완료되면 `animationend` 이벤트가 발생하지만, 모달은 열린 상태로 유지됩니다.
+// 사용시
+const App = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <>
+	  <button onClick={() => setIsOpen(true)}>모달 열기</button>
+      <Presence present={isOpen}>
+        <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} />
+      </Presence>
+    </>
+  )
+};
+```
 
-### 모달 닫기 (isOpen이 true → false로 변경)
+### 최초 렌더링시 (`isOpen`: `false`)
 
-1. 상태 변경으로 `isOpen`이 `false`로 바뀝니다.
-2. `Presence` 컴포넌트의 `present` prop이 `false`로 설정됩니다.
-3. `usePresence` 훅 내부에서 다음과 같은 처리가 일어납니다:
-   - `present` 값이 변경되었음을 감지합니다.
-   - 현재 애니메이션 이름을 확인합니다.
-   - CSS 애니메이션 변경 감지를 위해 이전 애니메이션 이름(`fadeIn`)과 현재 상태를 비교합니다.
-4. 모달 요소의 CSS를 변경하여 `fadeOut` 애니메이션을 적용합니다:
-5. 애니메이션 이름이 변경되면(`fadeIn` → `fadeOut`) 상태 머신에 `ANIMATION_OUT` 이벤트를 전송합니다.
-6. 상태가 `mounted`에서 `unmountSuspended`로 전환됩니다:
-   - 중요한 점: 이 상태에서도 `isPresent`는 여전히 `true`입니다.
-   - 따라서 모달은 계속 렌더링되지만, 이제 퇴장 애니메이션 중입니다.
-7. 퇴장 애니메이션(`fadeOut`)이 시작되면 `animationstart` 이벤트가 발생합니다:
-   - `handleAnimationStart` 함수가 호출됩니다.
-   - 현재 애니메이션 이름(`fadeOut`)이 `prevAnimationNameRef`에 저장됩니다.
-8. 퇴장 애니메이션이 완료되면 `animationend` 이벤트가 발생합니다:
-   - `handleAnimationEnd` 함수가 호출됩니다.
-   - 현재 애니메이션 이름을 확인하고 이벤트와 일치하는지 검증합니다.
-   - `ReactDOM.flushSync`를 사용하여 `ANIMATION_END` 이벤트를 상태 머신에 동기적으로 전송합니다.
-   - 이때 `present`가 `false`이므로 추가적인 스타일 처리가 이루어집니다: ```
-9. 상태 머신은 `ANIMATION_END` 이벤트를 받아 상태를 `unmountSuspended`에서 `unmounted`로 전환합니다.
-10. 상태가 `unmounted`로 바뀌면 `isPresent`가 `false`가 됩니다.
-11. `isPresent`가 `false`가 되면 Presence 컴포넌트는 더 이상 자식을 렌더링하지 않습니다:
-12. 모달 컴포넌트가 DOM에서 완전히 제거됩니다.
-13. 이벤트 리스너가 정리되고 관련 상태가 초기화됩니다.
+1. `usePresence`
+   - `present` 값: `false`
+   - `state` 초기 상태 `'unmounted'`
+   - `isPresent` 값(`false`)과 ref 콜백 반환
+2. `Presence`
+   - `isPresent`가 `false`이므로 컴포넌트는 `null`을 반환하고, React가 DOM 요소를 생성하지 않음
+   - ref 콜백과 이벤트리스너 모두 동작하지 않음
 
-## 이제는 Exit 애니메이션을 적용할 수 있다.
+### 모달 열기 (`isOpen`: `false` → `true`)
 
-Radix UI의 Presence 컴포넌트를 기반으로 React 컴포넌트에 exit 애니메이션을 적용하는 방법에 대해 알아보았습니다.
-React에서 컴포넌트의 exit animation을 구현하는 것이 어려운 이유는 React의 렌더링 메커니즘 때문입니다.
-React는 상태가 변경되면 즉시 컴포넌트를 언마운트하기 때문에, exit animation이 완료되기 전에 컴포넌트가 DOM에서 제거됩니다.
+1. `usePresence` - 첫번째 `useLayoutEffect` 실행 (`present` 값이 변경되었음을 감지)
+   - `MOUNT` 이벤트 전송(상태: `unmounted`→ `mounted`)
+   - `isPresent` 값: `true`
+2. 모달(자식 요소) 렌더링
+   - React가 DOM 요소 생성
+3. ref 콜백 실행
+   - 노드가 DOM에 추가되면 ref 콜백 함수 실행
+   - `stylesRef.current`에 컴퓨티드 스타일 저장
+   - `setNode`를 호출하여 node 상태 업데이트
+4. `usePresence` - 두번째 `useLayoutEffect` 실행 (`node` 값이 변경되었음을 감지)
+   - 애니메이션 이벤트 리스너 추가
+5. 브라우저 페인팅
+   - 모달 요소 화면 표시
+   - `fadeIn` 애니메이션 실행
+6. `usePresence` - `useEffect` 실행 (`state` 값이 변경되었음을 감지)
+   - `prevAnimationNameRef`에 현재 애니메이션 이름(`fadeIn`) 저장
+7. 애니메이션 종료
+   - 이미 `state`가 `mounted`이므로 별다른 액션 X
 
-Radix UI의 `Presence` 컴포넌트는 다음과 같은 방법으로 이 문제를 해결합니다.
+### 모달 닫기 (`isOpen`: `true` → `false`)
+
+1. `usePresence` - 첫번째 `useLayoutEffect` 실행 (`present` 값이 변경되었음을 감지)
+   - 현재 애니메이션 이름(`fadeOut`) 확인
+   - CSS 애니메이션 변경 감지(이전 애니메이션 이름(`fadeIn`)과 현재 상태 비교)
+   - `ANIMATION_OUT` 이벤트 전송(상태: `mounted`→ `unmountSuspensed`)
+   - `isPresent` 값: `true`
+2. 모달은 화면에 계속 있음
+3. exit 애니메이션(`fadeOut`)이 시작되면 `animationstart` 이벤트가 발생
+   - 현재 애니메이션 이름(`fadeOut`) `prevAnimationNameRef`에 저장
+4. exit 애니메이션(`fadeOut`)이 종료되면 `animationend` 이벤트가 발생
+   - 현재 애니메이션과 종료된 애니메이션의 이름이 같은 경우에만 실행
+   - `ANIMATION_END` 이벤트 전송(상태: `unmountSuspensed`→ `unmounted`)
+   - `isPresent` 값: `false`
+5. 모달 요소가 DOM에서 제거됨
+   - `Presence` 컴포넌트는 모달 컴포넌트를 가상 DOM에 포함시키지 않음
+   - 이벤트 리스너 정리 및 관련 상태 초기화
+6. `usePresence` - `useEffect` 실행 (`state` 값이 변경되었음을 감지)
+   - `prevAnimationNameRef`에 `none` 저장
+
+## React에서 Exit Animation 구현하기
+
+React에서 컴포넌트의 exit 애니메이션을 구현하는 것이 어려운 이유는 React의 렌더링 메커니즘 때문입니다. React는 상태가 변경되면 즉시 컴포넌트를 언마운트하기 때문에, exit 애니메이션이 실행되지 않고 컴포넌트가 DOM에서 제거됩니다.
+
+Radix UI의 `Presence` 컴포넌트는 DOM 요소의 존재 여부와 애니메이션 상태를 기반으로 exit 애니메이션 종료 이후로 컴포넌트의 Unmount를 지연시킵니다. 다음과 같은 방법으로 애니메이션 타이밍을 관리하는 로직을 추상화하여 선언적인 방법으로 exit 애니메이션을 제어합니다.
 
 1. **애니메이션 이벤트 활용**: `animationstart`, `animationend`, `animationcancel` 이벤트를 사용해 애니메이션 상태를 감지합니다.
-2. **상태 기반 언마운트 제어**: 애니메이션이 완료될 때까지 컴포넌트 언마운트를 지연시켜 exit 애니메이션이 완전히 실행될 수 있도록 합니다.
-3. **유연한 인터페이스**: 일반 자식 컴포넌트나 render props 패턴을 모두 지원하여 다양한 사용 사례에 적용할 수 있습니다.
+2. **컴포넌트 내부 상태 기반 언마운트 제어**: 애니메이션이 완료될 때까지 컴포넌트 언마운트를 지연시켜 exit 애니메이션이 완전히 실행될 수 있도록 합니다.
 
-이런 접근 방식은 `setTimeout`을 사용하거나 CSS 트릭을 활용하는 방법보다 훨씬 안정적입니다. 애니메이션의 실제 완료 시점을 정확히 감지하여 언마운트 타이밍을 제어하므로 브라우저 성능 문제나 애니메이션 지연 등의 상황에서도 자연스럽게 작동합니다.
+이런 접근 방식은 `setTimeout`이나 CSS 트릭을 사용하는 경우보다 훨씬 안정적입니다. 애니메이션의 실제 완료 시점을 정확히 감지하여 언마운트 타이밍을 제어하므로 브라우저 성능 문제나 애니메이션 지연 등의 상황에서도 자연스럽게 작동합니다.
 
-앞으로는 이런 방식으로 React 애플리케이션에서 Exit 애니메이션을 적용해봅시다.
+앞으로는 이런 방식으로 React 애플리케이션에서 Exit 애니메이션을 적용해보시는 것은 어떨까요?
