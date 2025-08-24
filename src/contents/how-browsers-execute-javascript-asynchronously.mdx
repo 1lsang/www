@@ -1,0 +1,100 @@
+---
+title: 브라우저가 JavaScript를 비동기적으로 실행시키는 방법
+date: 2025-08-24
+description: 싱글 스레드라면서요?
+---
+
+## 싱글스레드라면서 어떻게 비동기적으로 작업을 실행시키나요?
+
+예전에 한 시니어 개발자 분께서 [Philip Roberts: What the heck is the event loop anyway?](https://www.youtube.com/watch?v=8aGhZQkoFbQ) 영상을 추천해주셨습니다.
+
+> Javascript is a single thread, non blocking, asynchronous, concurrent language.
+
+해당 영상에서 Javascript를 설명하는데 사용된 문장인데, JavaScript라는 언어를 단 한 문장으로 가장 잘 표현한 문장이지 않을까 생각합니다. 이 한 문장에서 핵심 키워드를 보면 아래와 같습니다.
+
+- Single Thread
+- Non-blocking
+- Asynchronous
+- concurrent
+
+Javascript가 싱글 스레드로 동작하면서, 논 블로킹, 비동기, 동시성을 가진 프로그래밍 언어라는 사실을 알 수 있습니다.
+
+이 각각의 특성들을 깊게 뜯어보면서 살펴봅시다.
+
+### Single Thread (싱글 스레드)
+
+스레드가 무엇인가에 대해서 먼저 짚어봅시다. 컴퓨터 공학에서 스레드는 **프로세스 내에서 실행되는 가장 작은 단위의 작업 흐름**을 말합니다. 각 스레드는 자체적인 실행 흐름(프로그램 카운터, 레지스터 집합), 스택 공간(함수 호출 및 지역 변수 저장)을 가집니다.
+
+Javascript라는 언어가 싱글 스레드라는 것은 즉, 하나의 콜 스택(Call Stack)을 가지며 한 번에 하나의 작업만 처리할 수 있다는 것을 의미합니다. **JavaScript 엔진(대표적으로 V8)은 단하나의 메인 스레드만을 사용하기 때무에 코드 실행이 순차적으로 이루어지며, 현재 실행 중인 작업이 완료되어야 다음 작업이 시작된 다는 것이죠.** 이는 분명 Lock이나 Race condition 등을 고려하지 않아도 된다는 이점을 가져다 주지만, 무거운 작업을 수행할 때 Blocking이 발생하고 이는 UX를 저하시킵니다.
+
+### Non-blocking (논 블로킹)
+
+그런데 싱글 스레드라서 Blocking이 발생한다고 했는데 왜 Non-blocking일까요? Javascript는 싱글 스레드의 블로킹 문제를 해결하기 위해 **런타임 환경(브라우저의 Web API 또는 Node.js API)의 도움을 받습니다.** 네트워크 요청이나 타이머와 같은 시간이 오래 걸리는 작업은 백그라운드로 넘겨져 메인 스레드가 다른 작업을 계속 처리할 수 있게 합니다. **Javascript는 싱글 스레드 언어이지만 실제로 Javascript를 실행하는 런타임 환경 또한 싱글 스레드인 건 아니라는 거죠.**
+
+### Asynchronous (비동기)
+
+Non-blocking 특성과 연결되는 특성으로 Javascript는 비동기적으로 작업을 처리합니다. 특정 작업의 완료를 기다리지 않고, 런타임 환경의 도움을 받아 해당 적업을 수행하면서 다음 코드를 실행합니다. 백그라운드에서 완료된 작업(`setTimeout` 등)은 콜백 함수 형태로 태스크 큐(Task Queue)에 들어갔다가, 이벤트 루프(Event Loop)에 의해 호출 스택이 비어 있을 때 실행됩니다. 이 이벤트 루프의 동작에 대해서는 뒤에서 자세히 살펴보겠습니다.
+
+### Concurrent (동시성)
+
+JavaScript는 싱글 스레드 언어임에도 불구하고, 런타임 환경(브라우저의 Web API 또는 Node.js API)과 이벤트 루프 메커니즘을 통해 여러 작업을 동시에 처리하는 것처럼 보이게 합니다. 이는 CPU 집중적인 작업을 병렬로 처리하는 것이 아니라, 시간이 오래 걸리는 작업을 비동기적으로 처리하여 메인 스레드가 유휴 상태일 때(콜 스택이 비어있을 때) 다른 태스크를 실행함으로써 달성됩니다.
+
+## Event Loop와 Callback Queue
+
+앞서 **Javascript는 싱글 스레드 언어이지만 실제로 Javascript를 실행하는 런타임 환경 또한 싱글 스레드인 건 아니다**라고 말했던 것처럼 우리가 처음 Javascript를 배우면서 간과하는 부분이 있습니다. 사실 DOM API, `setTimeOut`, AJAX 요청 등은 Javascript라는 언어의 스펙이 아니라 브라우저에서 지원하는 스펙이라는 점입니다. (Web API)
+
+그렇다면 이런 Web API들이 실행되는 과정에는 Javascript의 동시성 모델의 핵심 구성요소인 Event Loop가 존재합니다.
+
+다음과 같이 Event Loop는 반복적으로 Call stack을 확인하면서 비어있는 경우 Queue에서 작업을 가져와 실행시키는 역할을 합니다.
+
+1.  **Call Stack 확인**: Event Loop는 지속적으로 Call Stack을 모니터링합니다.
+2.  **Stack이 비어있는지 확인**: Call Stack이 완전히 비어있을 때만 다음 단계로 진행합니다.
+3.  **Queue에서 작업 가져오기**: Callback Queue에서 대기 중인 작업을 하나씩 가져와 Call Stack에 추가합니다.
+4.  **반복**: 이 과정을 계속 반복합니다.
+
+> 개발자 도구에서 breakpoint를 설정해서 실제 콜스택이 어떻게 쌓이는지 line by line으로 확인할 수 있습니다.
+
+### Callback Queue의 종류와 우선순위
+
+여기서 한가지 주의해야할 점이 Callback Queue가 1개만 있는 것이 아니라는 점입니다. 브라우저 환경에서는 여러 종류의 Callback Queue가 존재하며, 각각 다른 우선순위를 가집니다.
+
+#### 1. Microtask Queue (가장 높은 우선순위)
+
+마이크로태스크 큐는 가장 높은 우선순위를 가지며, 다음과 같은 작업들이 이곳에 들어갑니다.
+
+- Promise의 `.then()`, `.catch()`, `.finally()` 콜백
+- `queueMicrotask()` 함수
+- `async/await`의 완료 콜백
+- `MutationObserver` 콜백
+
+#### 2. Animation Frame Queue (중간 우선순위)
+
+`requestAnimationFrame`으로 등록된 콜백들이 대기하는 큐입니다. 브라우저의 리페인트 사이클과 동기화되어 부드러운 애니메이션을 가능하게 합니다.
+
+#### 3. Task Queue (MacroTask Queue) (가장 낮은 우선순위)
+
+일반적인 비동기 작업들이 대기하는 큐입니다.
+
+- `setTimeout`, `setInterval`
+- DOM 이벤트 콜백
+- HTTP 요청 완료 콜백
+- `MessagePort` 이벤트
+
+Event Loop는 Call Stack이 비어있는 경우 이러한 우선순위를 기준으로 작업을 다시 실행시키게 됩니다.
+
+## Question
+
+Javascript의 언어적 특성과 Event Loop와 Callback Queue에 대해서 살펴보았습니다. 그럼 이제 면접에서 이런 질문을 받는다면 정확하게 대답할 수 있겠죠?
+
+> Q. 자바스크립트는 싱글 스레드 언어인데 비동기 처리는 어떻게 가능한가요? 이벤트 루프, 콜 스택, 태스크 큐(Microtask 포함) 중심으로 설명해주세요.
+
+Answer.
+
+**JavaScript 언어 자체는 싱글 스레드이지만, 실행 환경(브라우저, Node.js)이 멀티 스레드 환경을 제공하여 비동기 처리가 가능합니다.** Javascript가 Call Stack을 기반으로 코드를 실행하면서 비동기 작업을 수행할 경우 작업에 따라서 Task Queue, 혹은 MicroTask Queue에 콜백이 추가 됩니다. 이벤트 루프는 Call Stack이 비어있는지 지속적으로 확인하고 Call Stack이 비었을 경우 우선순위에 따라서 Queue에 쌓여 있는 Callback을 가져와서 실행시킵니다. 이때, MicroTask Queue가 Task Queue보다 우선순위가 높습니다.
+
+즉, JavaScript는 싱글 스레드 언어이지만, 런타임 환경의 멀티 스레드 도움으로 논블로킹 비동기 처리가 가능합니다. 이벤트 루프가 이 과정을 조율하는 역할을 합니다.
+
+### Reference
+
+- [Philip Roberts: What the heck is the event loop anyway?](https://www.youtube.com/watch?v=8aGhZQkoFbQ)
+- [Jake Archibald: In the loop](https://www.youtube.com/watch?v=cCOL7MC4Pl0)
